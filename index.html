@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyWalker Roasting Profile Adjuster</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f172a; font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+    table { border-collapse: collapse; width: 100%; }
+    button { cursor: pointer; font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const profiles = [
+      { code: "011", preheat: 200, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 0    },
+        { name: "During roasting 1", temp: 111,  heat: 70, fan: 65   },
+        { name: "During roasting 2", temp: 122,  heat: 65, fan: null },
+        { name: "During roasting 3", temp: 132,  heat: 60, fan: 70   },
+        { name: "During roasting 4", temp: 149,  heat: 65, fan: 85   },
+        { name: "During roasting 5", temp: 172,  heat: 50, fan: null },
+        { name: "End of roasting",   temp: 192,  heat: null,fan: null},
+      ]},
+      { code: "012", preheat: 200, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 65   },
+        { name: "During roasting 1", temp: 170,  heat: 50, fan: 85   },
+        { name: "End of roasting",   temp: 196,  heat: null,fan: null},
+      ]},
+      { code: "013", preheat: 200, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 65   },
+        { name: "During roasting 1", temp: 170,  heat: 50, fan: 85   },
+        { name: "End of roasting",   temp: 200,  heat: null,fan: null},
+      ]},
+      { code: "021", preheat: 220, phases: [
+        { name: "Roast start",       temp: null, heat: 70, fan: 65   },
+        { name: "During roasting 1", temp: 171,  heat: 50, fan: 85   },
+        { name: "End of roasting",   temp: 192,  heat: null,fan: null},
+      ]},
+      { code: "022", preheat: 220, phases: [
+        { name: "Roast start",       temp: null, heat: 70, fan: 65   },
+        { name: "During roasting 1", temp: 172,  heat: 50, fan: 85   },
+        { name: "End of roasting",   temp: 196,  heat: null,fan: null},
+      ]},
+      { code: "023", preheat: 220, phases: [
+        { name: "Roast start",       temp: null, heat: 70, fan: 65   },
+        { name: "During roasting 1", temp: 140,  heat: 75, fan: null },
+        { name: "During roasting 2", temp: 172,  heat: 50, fan: 85   },
+        { name: "End of roasting",   temp: 202,  heat: null,fan: null},
+      ]},
+      { code: "031", preheat: 215, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 65   },
+        { name: "During roasting 1", temp: 128,  heat: 75, fan: null },
+        { name: "During roasting 2", temp: 138,  heat: 70, fan: null },
+        { name: "During roasting 3", temp: 170,  heat: 65, fan: 80   },
+        { name: "End of roasting",   temp: 192,  heat: null,fan: null},
+      ]},
+      { code: "032", preheat: 215, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 65   },
+        { name: "During roasting 1", temp: 113,  heat: 70, fan: null },
+        { name: "During roasting 2", temp: 171,  heat: 65, fan: 80   },
+        { name: "End of roasting",   temp: 195,  heat: null,fan: null},
+      ]},
+      { code: "033", preheat: 215, phases: [
+        { name: "Roast start",       temp: null, heat: 65, fan: 65   },
+        { name: "During roasting 1", temp: 112,  heat: 70, fan: null },
+        { name: "During roasting 2", temp: 171,  heat: 65, fan: 80   },
+        { name: "End of roasting",   temp: 199,  heat: null,fan: null},
+      ]},
+    ];
+
+    function adjustPhase(phase) {
+      return {
+        ...phase,
+        heat: phase.heat != null ? Math.max(40, phase.heat - 10) : null,
+        fan:  phase.fan  != null ? Math.max(55, phase.fan  - 5)  : null,
+      };
+    }
+
+    const HEAT_COLOR = v => v >= 80 ? "#ef4444" : v >= 65 ? "#f97316" : v >= 50 ? "#eab308" : "#22c55e";
+    const TEMP_COLOR = v => v >= 190 ? "#dc2626" : v >= 160 ? "#ea580c" : v >= 130 ? "#ca8a04" : "#2563eb";
+
+    function Badge({ value, unit, original, type }) {
+      const color = type === "heat" ? HEAT_COLOR(value) : type === "temp" ? TEMP_COLOR(value) : "#64748b";
+      const changed = original != null && value !== original;
+      return (
+        <span style={{ display:"inline-flex", alignItems:"center", gap:3, background:color+"22", border:`1px solid ${color}55`, borderRadius:6, padding:"2px 7px", fontSize:12, fontWeight:600, color, whiteSpace:"nowrap" }}>
+          {value}{unit}
+          {changed && <span style={{ fontSize:10, color:"#94a3b8", fontWeight:400 }}>(เดิม {original}{unit})</span>}
+        </span>
+      );
+    }
+
+    function ProfileCard({ profile, showAdjusted }) {
+      const adjPreheat = profile.preheat - 10;
+      return (
+        <div style={{ background:"#1e293b", borderRadius:12, overflow:"hidden", border:"1px solid #334155", marginBottom:16 }}>
+          <div style={{ background:"#f59e0b", padding:"8px 16px", display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontWeight:800, fontSize:15, color:"#1e293b", letterSpacing:1 }}>Code : {profile.code}</span>
+            <span style={{ fontSize:12, color:"#92400e", marginLeft:"auto" }}>
+              Preheat:{" "}
+              {showAdjusted
+                ? <><span style={{ color:"#1e293b", fontWeight:700 }}>{adjPreheat}°C</span><span style={{ opacity:0.5, fontSize:11 }}> (เดิม {profile.preheat}°C)</span></>
+                : <span style={{ color:"#1e293b", fontWeight:700 }}>{profile.preheat}°C</span>
+              }
+            </span>
+          </div>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ fontSize:13 }}>
+              <thead>
+                <tr style={{ background:"#0f172a" }}>
+                  <th style={{ padding:"6px 12px", textAlign:"left",   color:"#94a3b8", fontWeight:600, minWidth:140 }}>Phase</th>
+                  <th style={{ padding:"6px 12px", textAlign:"center", color:"#94a3b8", fontWeight:600 }}>Temp °C</th>
+                  <th style={{ padding:"6px 12px", textAlign:"center", color:"#94a3b8", fontWeight:600 }}>Heat %</th>
+                  <th style={{ padding:"6px 12px", textAlign:"center", color:"#94a3b8", fontWeight:600 }}>Fan %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profile.phases.map((phase, i) => {
+                  const adj = adjustPhase(phase);
+                  const dp  = showAdjusted ? adj : phase;
+                  return (
+                    <tr key={i} style={{ borderTop:"1px solid #334155" }}>
+                      <td style={{ padding:"6px 12px", color:"#e2e8f0" }}>{phase.name}</td>
+                      <td style={{ padding:"6px 12px", textAlign:"center" }}>
+                        {phase.temp != null ? <Badge value={phase.temp} unit="°C" type="temp" /> : <span style={{ color:"#475569" }}>—</span>}
+                      </td>
+                      <td style={{ padding:"6px 12px", textAlign:"center" }}>
+                        {dp.heat != null ? <Badge value={dp.heat} unit="%" original={showAdjusted && adj.heat !== phase.heat ? phase.heat : null} type="heat" /> : <span style={{ color:"#475569" }}>—</span>}
+                      </td>
+                      <td style={{ padding:"6px 12px", textAlign:"center" }}>
+                        {dp.fan != null ? <Badge value={dp.fan} unit="%" original={showAdjusted && adj.fan !== phase.fan ? phase.fan : null} type="fan" /> : <span style={{ color:"#475569" }}>—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [showAdjusted, setShowAdjusted] = useState(true);
+      const [filter, setFilter]             = useState("all");
+      const filteredProfiles = profiles.filter(p => filter === "all" || p.code.startsWith(filter));
+      const b  = { border:"none", borderRadius:6, padding:"6px 14px", fontFamily:"inherit", fontWeight:600, fontSize:13 };
+      const fb = { border:"none", borderRadius:6, padding:"6px 12px", fontFamily:"inherit", fontWeight:600, fontSize:12 };
+      return (
+        <div style={{ minHeight:"100vh", background:"#0f172a", color:"#e2e8f0", padding:"24px 16px" }}>
+          <div style={{ maxWidth:820, margin:"0 auto" }}>
+            <div style={{ marginBottom:24 }}>
+              <div style={{ fontSize:11, color:"#f59e0b", letterSpacing:3, marginBottom:6 }}>☕ SKYWALKER ROASTER</div>
+              <h1 style={{ fontSize:22, fontWeight:800, color:"#f8fafc" }}>Roasting Profile Adjuster</h1>
+              <p style={{ color:"#64748b", fontSize:13, marginTop:6 }}>
+                ปรับสูตรจาก 350-400g → <span style={{ color:"#f59e0b", fontWeight:700 }}>200-250g</span>
+              </p>
+            </div>
+            <div style={{ background:"#1e293b", border:"1px solid #f59e0b55", borderLeft:"3px solid #f59e0b", borderRadius:10, padding:"12px 16px", marginBottom:20, fontSize:13 }}>
+              <div style={{ fontWeight:700, color:"#f59e0b", marginBottom:8 }}>📐 หลักการปรับสำหรับแบทช์เล็ก</div>
+              <div style={{ display:"grid", gap:5, color:"#cbd5e1" }}>
+                <div>🌡️ <strong style={{ color:"#f8fafc" }}>Preheat:</strong> ลด 10°C — มวลน้อยลง ไม่ต้องสะสมความร้อนมาก</div>
+                <div>🔥 <strong style={{ color:"#f8fafc" }}>Heat %:</strong> ลด ~10% — เมล็ดน้อย ร้อนขึ้นเร็วกว่า ระวัง Scorch</div>
+                <div>💨 <strong style={{ color:"#f8fafc" }}>Fan %:</strong> ลด ~5% — Airflow ยังสำคัญ แต่ลดเล็กน้อยได้</div>
+                <div>⏱️ <strong style={{ color:"#f8fafc" }}>เวลา:</strong> แต่ละเฟสจะ <em>เร็วกว่าเดิม</em> ควรดู Bean Temp อย่างใกล้ชิด</div>
+                <div>🎯 <strong style={{ color:"#f8fafc" }}>Temp targets:</strong> คงเดิม — นี่คือระดับการคั่ว ไม่ต้องเปลี่ยน</div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+              <div style={{ background:"#1e293b", borderRadius:8, padding:4, display:"flex", gap:4, border:"1px solid #334155" }}>
+                <button onClick={() => setShowAdjusted(false)} style={{ ...b, background:!showAdjusted?"#334155":"transparent", color:!showAdjusted?"#f8fafc":"#64748b" }}>สูตรเดิม (350-400g)</button>
+                <button onClick={() => setShowAdjusted(true)}  style={{ ...b, background: showAdjusted?"#f59e0b":"transparent", color: showAdjusted?"#1e293b":"#64748b", fontWeight:700 }}>✦ ปรับแล้ว (200-250g)</button>
+              </div>
+              <div style={{ background:"#1e293b", borderRadius:8, padding:4, display:"flex", gap:4, border:"1px solid #334155", marginLeft:"auto" }}>
+                {[["all","ทั้งหมด"],["0","01x"],["02","02x"],["03","03x"]].map(([v,l]) => (
+                  <button key={v} onClick={() => setFilter(v)} style={{ ...fb, background:filter===v?"#334155":"transparent", color:filter===v?"#f8fafc":"#64748b" }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {filteredProfiles.map(p => <ProfileCard key={p.code} profile={p} showAdjusted={showAdjusted} />)}
+            <div style={{ background:"#1e293b", border:"1px solid #334155", borderRadius:10, padding:"12px 16px", marginTop:8, fontSize:12, color:"#94a3b8" }}>
+              <span style={{ background:"#f59e0b", color:"#1e293b", fontWeight:700, padding:"1px 8px", borderRadius:4, marginRight:8 }}>Code : COL</span>
+              Smoke filtration &amp; full fan — Heating stops until temp drops below 60°C, then standby mode.
+            </div>
+            <div style={{ marginTop:20, fontSize:11, color:"#475569", textAlign:"center" }}>
+              ⚠️ ค่าเหล่านี้เป็นจุดเริ่มต้น — ควรบันทึกผลแต่ละครั้งแล้วปรับ Fine-tune ตามเมล็ดและรสชาติที่ต้องการ
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
